@@ -1,27 +1,18 @@
 export default function handler(req, res) {
-  const required = [
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
-    "GOOGLE_SERVICE_ACCOUNT_EMAIL",
-    "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
-    "GOOGLE_INVENTORY_SHEET_ID",
-    "GOOGLE_DRIVE_ROOT_FOLDER_ID"
-  ];
-
-  const configured = Object.fromEntries(
-    required.map((key) => [key, Boolean(process.env[key])])
-  );
+  const configured = {
+    APPS_SCRIPT_WEB_APP_URL: Boolean(process.env.APPS_SCRIPT_WEB_APP_URL),
+    APPS_SCRIPT_SHARED_SECRET: Boolean(process.env.APPS_SCRIPT_SHARED_SECRET),
+    GOOGLE_CLIENT_ID: Boolean(process.env.GOOGLE_CLIENT_ID),
+    GOOGLE_CLIENT_SECRET: Boolean(process.env.GOOGLE_CLIENT_SECRET),
+    ADMIN_GOOGLE_EMAIL: Boolean(process.env.ADMIN_GOOGLE_EMAIL)
+  };
 
   res.status(200).json({
-    googleAuthReady: configured.GOOGLE_CLIENT_ID && configured.GOOGLE_CLIENT_SECRET,
-    sheetsReady:
-      configured.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-      configured.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY &&
-      configured.GOOGLE_INVENTORY_SHEET_ID,
-    driveReady:
-      configured.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-      configured.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY &&
-      configured.GOOGLE_DRIVE_ROOT_FOLDER_ID,
+    dataBridgeReady:
+      configured.APPS_SCRIPT_WEB_APP_URL &&
+      configured.APPS_SCRIPT_SHARED_SECRET,
+    googleAuthReady:
+      configured.GOOGLE_CLIENT_ID && configured.GOOGLE_CLIENT_SECRET,
     configured
   });
 }
