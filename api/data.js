@@ -1,4 +1,10 @@
-import crypto from 'node:crypto';
+import { getDriveRootMetadata, getSpreadsheetMetadata } from '../lib/google.js';
+
+function isSetupAuthorized(req) {
+  const expected = process.env.SETUP_TEST_KEY;
+  const received = req.headers['x-setup-key'];
+  return Boolean(expected && received && received === expected);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,46 +12,46 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
-  const url = process.env.APPS_SCRIPT_WEB_APP_URL;
-  const secret = process.env.APPS_SCRIPT_SHARED_SECRET;
-
-  if (!url || !secret) {
-    return res.status(503).json({
-      ok: false,
-      error: 'Google data bridge is not configured yet.'
-    });
+  // Until Google user login/session validation is added, real Google metadata
+  // is only exposed through an explicit setup key kept in Vercel.
+  if (!isSetupAuthorized(req)) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
 
-  const payload = req.body || {};
-  const ts = Date.now();
-  const canonical = `${ts}.${JSON.stringify(payload)}`;
-  const signature = crypto
-    .createHmac('sha256', secret)
-    .update(canonical)
-    .digest('hex');
+  const action = String(req.body?.action || 'connection-test').toLowerCase();
 
   try {
-    const upstream = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ts, payload, signature }),
-      redirect: 'follow'
-    });
+    if (action === 'connection-test' || action === 'bootstrap') {
+      const [spreadsheet, driveRoot] = await Promise.all([
+        getSpreadsheetMetadata(),
+        getDriveRootMetadata()
+      ]);
 
-    const text = await upstream.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { ok: false, error: 'Apps Script returned a non-JSON response.' };
+      return res.status(200).json({
+        ok: true,
+        hosting: 'vercel',
+        spreadsheet: {
+          id: spreadsheet.spreadsheetId,
+          title: spreadsheet.properties?.title,
+          sheets: (spreadsheet.sheets || []).map((entry) => ({
+            id: entry.properties?.sheetId,
+            title: entry.properties?.title,
+            index: entry.properties?.index,
+            rows: entry.properties?.gridProperties?.rowCount,
+            columns: entry.properties?.gridProperties?.columnCount
+          }))
+        },
+        driveRoot
+      });
     }
 
-    return res.status(upstream.ok ? 200 : upstream.status).json(data);
+    return res.status(400).json({ ok: false, error: `Unknown action: ${action}` });
   } catch (error) {
-    return res.status(502).json({
+    const status = error.code === 'GOOGLE_NOT_CONFIGURED' ? 503 : 502;
+    return res.status(status).json({
       ok: false,
-      error: 'Could not reach Google Apps Script.',
-      detail: error?.message || String(error)
+      error: error.message || 'Google API request failed.',
+      code: error.code || null
     });
   }
 }
