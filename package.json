@@ -1,0 +1,14 @@
+{
+  "name": "secprotech-inventory-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SECproTECH inventory tracker PWA hosted on Vercel with Google Sheets/Drive integration.",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy:preview": "vercel",
+    "deploy:prod": "vercel --prod"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
